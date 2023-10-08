@@ -28,6 +28,7 @@ jobs:
         run: cargo clippy --all-targets --all-features
   test:
     name: Test
+    needs: Clippy
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -44,6 +45,7 @@ jobs:
         run: cargo test
   build:
     name: Build
+    needs: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
