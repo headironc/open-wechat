@@ -1,3 +1,9 @@
+//! use open_wechat::client::Client;
+//! use open_wechat::client::authenticate::Authenticate;
+//!
+//! let client = Client::new("app_id", "secret");
+//! let session = client.authenticate("code").await?;
+
 #![warn(
     clippy::all,
     nonstandard_style,
@@ -8,18 +14,3 @@
 
 pub mod client;
 pub mod error;
-
-/// test
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add() {
-        assert_eq!(add(1, 2), 3);
-    }
-}
