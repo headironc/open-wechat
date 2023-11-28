@@ -1,10 +1,12 @@
 [package]
 name = "open-wechat"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["HeadIron <i@liangzhicheng.cc>"]
 description = "A rust sdk for wechat miniprogram open api"
 license = "MIT"
+homepage = "https://github.com/headironc/open-wechat"
+repository = "https://github.com/headironc/open-wechat"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
