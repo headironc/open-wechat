@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
+use tracing::{debug, instrument};
 
-use super::{Client, Session};
+use crate::client::Client;
 use crate::error::{Error, ErrorMessage};
+use crate::session::Session;
 
 static AUTH_URL: &str = "https://api.weixin.qq.com/sns/jscode2session";
 
@@ -13,8 +15,10 @@ pub trait Authenticate {
 
 #[async_trait]
 impl Authenticate for Client {
-    #[tracing::instrument]
+    #[instrument(skip(self, code))]
     async fn login(&self, code: &str) -> Result<Session, Error> {
+        debug!("login code: {}", code);
+
         let mut hash_map: HashMap<&str, &str> = HashMap::new();
 
         hash_map.insert("appid", &self.app_id);
@@ -36,7 +40,7 @@ impl Authenticate for Client {
 
         let session = res.json::<Session>().await?;
 
-        tracing::debug!("response: {:#?}", session);
+        tracing::debug!("session: {:#?}", session);
 
         Ok(session)
     }

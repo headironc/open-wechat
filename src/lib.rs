@@ -12,5 +12,9 @@
 )]
 #![forbid(unsafe_code)]
 
+pub mod authenticate;
 pub mod client;
+pub mod decrypt;
 pub mod error;
+pub mod session;
+pub mod user;
