@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
-use tracing::{debug, instrument};
+use tracing::{event, instrument, Level};
 
-use crate::client::Client;
-use crate::error::{Error, ErrorMessage};
+use super::{Client, Response};
+use crate::error::Error::{self, Internal};
 use crate::session::Session;
 
 static AUTH_URL: &str = "https://api.weixin.qq.com/sns/jscode2session";
@@ -17,7 +17,7 @@ pub trait Authenticate {
 impl Authenticate for Client {
     #[instrument(skip(self, code))]
     async fn login(&self, code: &str) -> Result<Session, Error> {
-        debug!("login code: {}", code);
+        event!(Level::DEBUG, "code: {}", code);
 
         let mut hash_map: HashMap<&str, &str> = HashMap::new();
 
@@ -28,20 +28,18 @@ impl Authenticate for Client {
 
         let res = self.client.get(AUTH_URL).query(&hash_map).send().await?;
 
-        tracing::debug!("response: {:#?}", res);
+        event!(Level::DEBUG, "response: {:#?}", res);
 
-        if !res.status().is_success() {
-            let error = res.json::<ErrorMessage>().await?;
+        if res.status().is_success() {
+            let res = res.json::<Response<Session>>().await?;
 
-            tracing::error!("error: {:#?}", error);
+            let session = res.get()?;
 
-            return Err(error.into());
+            event!(Level::DEBUG, "session: {:#?}", session);
+
+            Ok(session)
+        } else {
+            Err(Internal(res.text().await?))
         }
-
-        let session = res.json::<Session>().await?;
-
-        tracing::debug!("session: {:#?}", session);
-
-        Ok(session)
     }
 }
