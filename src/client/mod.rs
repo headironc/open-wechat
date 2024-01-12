@@ -1,11 +1,11 @@
 mod authenticate;
 
 use serde::Deserialize;
-use serde_repr::Deserialize_repr;
 
-use crate::error::Error;
+use crate::error::{Error, ErrorCode};
 pub use authenticate::Authenticate;
 
+/// 存储微信小程序的 appid 和 secret
 #[derive(Debug, Clone)]
 pub struct Client {
     app_id: String,
@@ -25,6 +25,7 @@ impl Client {
     }
 }
 
+/// 微信小程序返回的数据结构
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case", untagged)]
 pub enum Response<T> {
@@ -37,16 +38,8 @@ pub enum Response<T> {
     },
 }
 
-#[derive(Debug, Deserialize_repr)]
-#[repr(i32)]
-pub enum ErrorCode {
-    InvalidCode = 40029,
-    RateLimitExceeded = 45011,
-    CodeBlocked = 40226,
-    System = -1,
-}
-
 impl<T> Response<T> {
+    /// 获取微信小程序返回的数据
     pub fn get(self) -> Result<T, Error> {
         match self {
             Self::Success(t) => Ok(t),
