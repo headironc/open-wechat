@@ -3,20 +3,22 @@ use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
 use super::{Client, Response};
+use crate::credentials::Credentials;
 use crate::error::Error::{self, Internal};
-use crate::session::Session;
 
 static AUTH_URL: &str = "https://api.weixin.qq.com/sns/jscode2session";
 
 #[async_trait]
 pub trait Authenticate {
-    async fn login(&self, code: &str) -> Result<Session, Error>;
+    async fn login(&self, code: &str) -> Result<Credentials, Error>;
 }
 
 #[async_trait]
 impl Authenticate for Client {
+    /// 登录凭证校验
+    /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
     #[instrument(skip(self, code))]
-    async fn login(&self, code: &str) -> Result<Session, Error> {
+    async fn login(&self, code: &str) -> Result<Credentials, Error> {
         event!(Level::DEBUG, "code: {}", code);
 
         let mut hash_map: HashMap<&str, &str> = HashMap::new();
@@ -31,7 +33,7 @@ impl Authenticate for Client {
         event!(Level::DEBUG, "response: {:#?}", res);
 
         if res.status().is_success() {
-            let res = res.json::<Response<Session>>().await?;
+            let res = res.json::<Response<Credentials>>().await?;
 
             let session = res.get()?;
 

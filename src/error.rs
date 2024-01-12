@@ -1,6 +1,7 @@
 use base64::DecodeError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as JsonError;
+use serde_repr::Deserialize_repr;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -22,4 +23,14 @@ pub enum Error {
     Decode(#[from] DecodeError),
     #[error("internal error: {0}")]
     Internal(String),
+}
+
+/// 微信小程序返回的错误码
+#[derive(Debug, Deserialize_repr)]
+#[repr(i32)]
+pub enum ErrorCode {
+    InvalidCode = 40029,
+    RateLimitExceeded = 45011,
+    CodeBlocked = 40226,
+    System = -1,
 }
