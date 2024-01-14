@@ -21,3 +21,4 @@ serde_json = "1.0.108"
 aes = "0.8.3"
 cbc = { version = "0.1.2", features = ["alloc"] }
 base64 = "0.21.5"
+chrono = { version = "0.4.31", features = ["serde"] }

@@ -3,7 +3,7 @@ mod authenticate;
 use serde::Deserialize;
 
 use crate::error::{Error, ErrorCode};
-pub use authenticate::Authenticate;
+pub use authenticate::{Authenticate, GetAccessToken};
 
 /// 存储微信小程序的 appid 和 secret
 #[derive(Debug, Clone)]
@@ -44,11 +44,23 @@ impl<T> Response<T> {
         match self {
             Self::Success(t) => Ok(t),
             Self::Failure { code, message } => {
+                use ErrorCode::*;
+
                 let error = match code {
-                    ErrorCode::InvalidCode => Error::InvalidCode(message),
-                    ErrorCode::RateLimitExceeded => Error::RateLimitExceeded(message),
-                    ErrorCode::CodeBlocked => Error::CodeBlocked(message),
-                    ErrorCode::System => Error::System(message),
+                    InvalidCredential => Error::InvalidCredential(message),
+                    InvalidGrantType => Error::InvalidGrantType(message),
+                    InvalidAppId => Error::InvalidAppId(message),
+                    InvalidCode => Error::InvalidCode(message),
+                    InvalidSecret => Error::InvalidSecret(message),
+                    ForbiddenIp => Error::ForbiddenIp(message),
+                    CodeBlocked => Error::CodeBlocked(message),
+                    SecretFrozen => Error::SecretFrozen(message),
+                    MissingSecret => Error::MissingSecret(message),
+                    RateLimitExceeded => Error::RateLimitExceeded(message),
+                    ForbiddenToken => Error::ForbiddenToken(message),
+                    AccountFrozen => Error::AccountFrozen(message),
+                    ThirdPartyToken => Error::ThirdPartyToken(message),
+                    System => Error::System(message),
                 };
 
                 Err(error)

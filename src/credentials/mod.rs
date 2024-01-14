@@ -1,6 +1,7 @@
 mod decrypt;
 
-use serde::{Deserialize, Serialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Deserializer, Serialize};
 
 pub use decrypt::Decrypt;
 
@@ -10,6 +11,17 @@ pub struct Credentials {
     #[serde(rename = "openid")]
     open_id: String,
     session_key: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AccessToken {
+    #[serde(rename = "access_token")]
+    inner: String,
+    #[serde(
+        rename = "expires_in",
+        deserialize_with = "AccessToken::deserialize_expires_in"
+    )]
+    expired_at: DateTime<Utc>,
 }
 
 /// 存储微信小程序的解密后的用户信息
@@ -86,5 +98,24 @@ impl Watermark {
     /// 获取微信小程序的时间戳
     pub fn timestamp(&self) -> u64 {
         self.timestamp
+    }
+}
+
+impl AccessToken {
+    /// 检查 access_token 是否过期
+    pub fn is_expired(&self) -> bool {
+        self.expired_at < Utc::now()
+    }
+
+    fn deserialize_expires_in<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use chrono::Duration;
+
+        // seconds
+        let seconds = i64::deserialize(deserializer)?;
+
+        Ok(Utc::now() + Duration::seconds(seconds))
     }
 }
