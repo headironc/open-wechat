@@ -3,7 +3,7 @@ mod authenticate;
 use serde::Deserialize;
 
 use crate::error::{Error, ErrorCode};
-pub use authenticate::Authenticate;
+pub use authenticate::{Authenticate, GetAccessToken};
 
 /// 存储微信小程序的 appid 和 secret
 #[derive(Debug, Clone)]
@@ -27,32 +27,51 @@ impl Client {
 
 /// 微信小程序返回的数据结构
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case", untagged)]
-pub enum Response<T> {
-    Success(T),
-    Failure {
-        #[serde(rename = "errcode")]
-        code: ErrorCode,
-        #[serde(rename = "errmsg")]
-        message: String,
-    },
+#[serde(rename_all = "camelCase")]
+pub struct Response<T> {
+    #[serde(flatten)]
+    error: Option<ResponseError>,
+    #[serde(flatten)]
+    data: T,
+}
+
+#[derive(Debug, Deserialize)]
+struct ResponseError {
+    #[serde(rename = "errcode")]
+    code: ErrorCode,
+    #[serde(rename = "errmsg")]
+    message: String,
 }
 
 impl<T> Response<T> {
     /// 获取微信小程序返回的数据
     pub fn get(self) -> Result<T, Error> {
-        match self {
-            Self::Success(t) => Ok(t),
-            Self::Failure { code, message } => {
-                let error = match code {
-                    ErrorCode::InvalidCode => Error::InvalidCode(message),
-                    ErrorCode::RateLimitExceeded => Error::RateLimitExceeded(message),
-                    ErrorCode::CodeBlocked => Error::CodeBlocked(message),
-                    ErrorCode::System => Error::System(message),
-                };
+        if let Some(error) = self.error {
+            use ErrorCode::*;
 
-                Err(error)
-            }
+            let message = error.message;
+
+            let error = match error.code {
+                InvalidCredential => Error::InvalidCredential(message),
+                InvalidGrantType => Error::InvalidGrantType(message),
+                InvalidAppId => Error::InvalidAppId(message),
+                InvalidCode => Error::InvalidCode(message),
+                InvalidSecret => Error::InvalidSecret(message),
+                ForbiddenIp => Error::ForbiddenIp(message),
+                CodeBlocked => Error::CodeBlocked(message),
+                SecretFrozen => Error::SecretFrozen(message),
+                MissingSecret => Error::MissingSecret(message),
+                RateLimitExceeded => Error::RateLimitExceeded(message),
+                ForbiddenToken => Error::ForbiddenToken(message),
+                AccountFrozen => Error::AccountFrozen(message),
+                ThirdPartyToken => Error::ThirdPartyToken(message),
+                System => Error::System(message),
+                Success => return Ok(self.data),
+            };
+
+            return Err(error);
         }
+
+        Ok(self.data)
     }
 }
