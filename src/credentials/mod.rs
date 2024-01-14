@@ -3,7 +3,7 @@ mod decrypt;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize};
 
-pub use decrypt::Decrypt;
+pub use decrypt::{Decrypt, GetPhoneNumber};
 
 /// 存储微信小程序的 api 返回的 session_key 和 openid
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -25,7 +25,7 @@ pub struct AccessToken {
 }
 
 /// 存储微信小程序的解密后的用户信息
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserInfo {
     nick_name: String,
@@ -34,6 +34,22 @@ pub struct UserInfo {
     province: String,
     country: String,
     avatar_url: String,
+    watermark: Watermark,
+}
+
+/// 存储微信小程序的解密后的用户手机号信息
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PhoneInfo {
+    #[serde(rename = "phone_info")]
+    inner: PhoneInfoInner,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct PhoneInfoInner {
+    phone_number: String,
+    pure_phone_number: String,
+    country_code: String,
     watermark: Watermark,
 }
 
@@ -86,6 +102,28 @@ impl UserInfo {
     /// 获取微信小程序的水印信息
     pub fn watermark(&self) -> &Watermark {
         &self.watermark
+    }
+}
+
+impl PhoneInfo {
+    /// 获取微信小程序的用户手机号
+    pub fn phone_number(&self) -> &str {
+        &self.inner.phone_number
+    }
+
+    /// 获取微信小程序的用户手机号（不带国家代码）
+    pub fn pure_phone_number(&self) -> &str {
+        &self.inner.pure_phone_number
+    }
+
+    /// 获取微信小程序的用户手机号国家代码
+    pub fn country_code(&self) -> &str {
+        &self.inner.country_code
+    }
+
+    /// 获取微信小程序的水印信息
+    pub fn watermark(&self) -> &Watermark {
+        &self.inner.watermark
     }
 }
 

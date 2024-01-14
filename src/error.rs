@@ -49,6 +49,7 @@ pub enum Error {
 #[derive(Debug, Deserialize_repr)]
 #[repr(i32)]
 pub enum ErrorCode {
+    Success = 0,
     InvalidCredential = 40001,
     InvalidGrantType = 40002,
     InvalidAppId = 40013,
