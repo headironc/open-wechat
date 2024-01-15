@@ -27,51 +27,47 @@ impl Client {
 
 /// 微信小程序返回的数据结构
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Response<T> {
-    #[serde(flatten)]
-    error: Option<ResponseError>,
-    #[serde(flatten)]
-    data: T,
-}
-
-#[derive(Debug, Deserialize)]
-struct ResponseError {
-    #[serde(rename = "errcode")]
-    code: ErrorCode,
-    #[serde(rename = "errmsg")]
-    message: String,
+#[serde(rename_all = "camelCase", untagged)]
+pub enum Response<T> {
+    Success {
+        #[serde(flatten)]
+        data: T,
+    },
+    Error {
+        #[serde(rename = "errcode")]
+        code: ErrorCode,
+        #[serde(rename = "errmsg")]
+        message: String,
+    },
 }
 
 impl<T> Response<T> {
     /// 获取微信小程序返回的数据
     pub fn get(self) -> Result<T, Error> {
-        if let Some(error) = self.error {
-            use ErrorCode::*;
+        match self {
+            Self::Success { data } => Ok(data),
+            Self::Error { code, message } => {
+                use ErrorCode::*;
 
-            let message = error.message;
+                let error = match code {
+                    InvalidCredential => Error::InvalidCredential(message),
+                    InvalidGrantType => Error::InvalidGrantType(message),
+                    InvalidAppId => Error::InvalidAppId(message),
+                    InvalidCode => Error::InvalidCode(message),
+                    InvalidSecret => Error::InvalidSecret(message),
+                    ForbiddenIp => Error::ForbiddenIp(message),
+                    CodeBlocked => Error::CodeBlocked(message),
+                    SecretFrozen => Error::SecretFrozen(message),
+                    MissingSecret => Error::MissingSecret(message),
+                    RateLimitExceeded => Error::RateLimitExceeded(message),
+                    ForbiddenToken => Error::ForbiddenToken(message),
+                    AccountFrozen => Error::AccountFrozen(message),
+                    ThirdPartyToken => Error::ThirdPartyToken(message),
+                    System => Error::System(message),
+                };
 
-            let error = match error.code {
-                InvalidCredential => Error::InvalidCredential(message),
-                InvalidGrantType => Error::InvalidGrantType(message),
-                InvalidAppId => Error::InvalidAppId(message),
-                InvalidCode => Error::InvalidCode(message),
-                InvalidSecret => Error::InvalidSecret(message),
-                ForbiddenIp => Error::ForbiddenIp(message),
-                CodeBlocked => Error::CodeBlocked(message),
-                SecretFrozen => Error::SecretFrozen(message),
-                MissingSecret => Error::MissingSecret(message),
-                RateLimitExceeded => Error::RateLimitExceeded(message),
-                ForbiddenToken => Error::ForbiddenToken(message),
-                AccountFrozen => Error::AccountFrozen(message),
-                ThirdPartyToken => Error::ThirdPartyToken(message),
-                System => Error::System(message),
-                Success => return Ok(self.data),
-            };
-
-            return Err(error);
+                Err(error)
+            }
         }
-
-        Ok(self.data)
     }
 }
