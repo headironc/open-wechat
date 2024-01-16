@@ -27,7 +27,7 @@ impl Client {
 
 /// 微信小程序返回的数据结构
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase", untagged)]
+#[serde(untagged)]
 pub enum Response<T> {
     Success {
         #[serde(flatten)]
