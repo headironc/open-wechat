@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, KeyIvInit};
 use aes::Aes128;
@@ -7,6 +5,7 @@ use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use cbc::Decryptor;
 use serde_json::from_slice;
+use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
 use super::{AccessToken, Credentials, PhoneInfo, UserInfo};
