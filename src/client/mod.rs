@@ -3,7 +3,7 @@ mod authenticate;
 use serde::Deserialize;
 
 use crate::error::{Error, ErrorCode};
-pub use authenticate::{Authenticate, GetAccessToken};
+pub use authenticate::{Authenticate, GetAccessToken, GetStableAccessToken};
 
 /// 存储微信小程序的 appid 和 secret
 #[derive(Debug, Clone)]
