@@ -17,14 +17,9 @@ type Aes128CbcDec = Decryptor<Aes128>;
 
 static GET_PHONE_NUMBER_URI: &str = "https://api.weixin.qq.com/wxa/business/getuserphonenumber";
 
+/// 解密用户数据
 pub trait Decrypt {
     fn decrypt(&self, encrypted_data: &str, iv: &str) -> Result<UserInfo, Error>;
-}
-
-#[async_trait]
-pub trait GetPhoneNumber {
-    async fn get_phone_number(&self, code: &str, open_id: Option<&str>)
-        -> Result<PhoneInfo, Error>;
 }
 
 impl Decrypt for Credentials {
@@ -58,6 +53,13 @@ impl Decrypt for Credentials {
 
         Ok(user_info)
     }
+}
+
+/// 使用 小程序接口提供的 code 以及 openid 获取用户手机号
+#[async_trait]
+pub trait GetPhoneNumber {
+    async fn get_phone_number(&self, code: &str, open_id: Option<&str>)
+        -> Result<PhoneInfo, Error>;
 }
 
 #[async_trait]
