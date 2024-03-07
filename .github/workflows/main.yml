@@ -2,12 +2,12 @@
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
     types:
       - "opened"
       - "synchronize"
-    branches: [ main ]
+    branches: [main]
 
 name: Cargo Clippy & Test & Build
 
@@ -31,13 +31,13 @@ jobs:
         run: cargo clippy --all-targets --all-features
   test:
     name: Test
-    needs: Clippy
+    needs: clippy
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         toolchain:
           - stable
-        os: 
+        os:
           - ubuntu-latest
           - macos-latest
           - windows-latest
@@ -48,11 +48,10 @@ jobs:
         run: cargo test
   build:
     name: Build
-    needs: Test
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Build
         run: cargo build --release
-
