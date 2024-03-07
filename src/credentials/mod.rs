@@ -57,7 +57,10 @@ impl AccessToken {
         // seconds
         let seconds = i64::deserialize(deserializer)?;
 
-        Ok(Utc::now() + Duration::seconds(seconds))
+        let seconds =
+            Duration::try_seconds(seconds).ok_or(serde::de::Error::custom("invalid seconds"))?;
+
+        Ok(Utc::now() + seconds)
     }
 }
 
