@@ -13,7 +13,7 @@ repository = "https://github.com/headironc/open-wechat"
 [dependencies]
 reqwest = { version = "0.12.5", features = ["json"] }
 async-trait = "0.1.77"
-thiserror = "1.0.57"
+thiserror = "2.0.3"
 tracing = "0.1.40"
 serde = { version = "1.0.197", features = ["derive"] }
 serde_repr = "0.1.18"
