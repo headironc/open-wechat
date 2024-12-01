@@ -12,12 +12,18 @@ pub struct Credentials {
     #[serde(rename = "openid")]
     open_id: String,
     session_key: String,
+    #[serde(rename = "unionid")]
+    union_id: Option<String>,
 }
 
 impl Credentials {
     /// 获取微信小程序的 openid
     pub fn open_id(&self) -> &str {
         &self.open_id
+    }
+
+    pub fn union_id(&self) -> Option<&str> {
+        self.union_id.as_deref()
     }
 }
 
