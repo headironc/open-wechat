@@ -5,8 +5,8 @@ on:
     branches: [main]
   pull_request:
     types:
-      - "opened"
-      - "synchronize"
+      - 'opened'
+      - 'synchronize'
     branches: [main]
 
 name: Cargo Clippy & Test & Build
