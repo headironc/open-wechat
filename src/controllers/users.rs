@@ -21,3 +21,36 @@ pub(crate) async fn login(
         "credential": credential,
     })))
 }
+
+#[derive(Deserialize, Default)]
+pub(crate) struct EncryptedPayload {
+    code: String,
+    encrypted_data: String,
+    iv: String,
+}
+
+pub(crate) async fn decrypt(
+    State(client): State<Client>,
+    JsonDecoder(payload): JsonDecoder<EncryptedPayload>,
+) -> Result<impl IntoResponse> {
+    let credential = client.login(&payload.code).await?;
+
+    let user = credential.decrypt(&payload.encrypted_data, &payload.iv)?;
+
+    Ok(Json(json!({
+        "user": user,
+    })))
+}
+
+// pub(crate) struct Verifier {
+//     code: String,
+// }
+
+// pub(crate) async fn getMobile(
+//     State(client): State<Client>,
+//     JsonDecoder(verifier): JsonDecoder<Verifier>,
+// ) -> Result<impl IntoResponse> {
+//     Ok(Json(json!({
+//         "message": "get mobile",
+//     })))
+// }

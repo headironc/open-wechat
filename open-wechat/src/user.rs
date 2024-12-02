@@ -1,23 +1,20 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
 
 use crate::{
     credential::GenericAccessToken, error::Error::InternalServer, response::Response, Result,
 };
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct User {
-    #[serde(rename = "nick_name")]
     nickname: String,
     gender: u8,
     country: String,
     province: String,
     city: String,
-    #[serde(rename = "avatar_url")]
     avatar: String,
     watermark: Watermark,
 }
@@ -56,31 +53,78 @@ impl User {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct UserBuilder {
+    #[serde(rename = "nickName")]
+    nickname: String,
+    gender: u8,
+    country: String,
+    province: String,
+    city: String,
+    #[serde(rename = "avatarUrl")]
+    avatar: String,
+    watermark: WatermarkBuilder,
+}
+
+impl UserBuilder {
+    pub(crate) fn build(self) -> User {
+        User {
+            nickname: self.nickname,
+            gender: self.gender,
+            country: self.country,
+            province: self.province,
+            city: self.city,
+            avatar: self.avatar,
+            watermark: self.watermark.build(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Contact {
+    phone: String,
+    pure_phone: String,
+    country_code: String,
+    watermark: Watermark,
+}
+
+impl Contact {
+    pub fn phone(&self) -> &str {
+        &self.phone
+    }
+
+    pub fn pure_phone(&self) -> &str {
+        &self.pure_phone
+    }
+
+    pub fn country_code(&self) -> &str {
+        &self.country_code
+    }
+
+    pub fn app_id(&self) -> &str {
+        &self.watermark.app_id
+    }
+
+    pub fn timestamp(&self) -> u64 {
+        self.watermark.timestamp
+    }
+}
+
 #[derive(Debug, Deserialize, Clone)]
-pub struct Phone {
+pub(crate) struct ContactBuilder {
     #[serde(rename = "phone_info")]
     inner: PhoneInner,
 }
 
-impl Phone {
-    pub fn phone(&self) -> &str {
-        &self.inner.phone
-    }
-
-    pub fn pure_phone(&self) -> &str {
-        &self.inner.pure_phone
-    }
-
-    pub fn country_code(&self) -> &str {
-        &self.inner.country_code
-    }
-
-    pub fn app_id(&self) -> &str {
-        &self.inner.watermark.app_id
-    }
-
-    pub fn timestamp(&self) -> u64 {
-        self.inner.watermark.timestamp
+impl ContactBuilder {
+    pub(crate) fn build(self) -> Contact {
+        Contact {
+            phone: self.inner.phone,
+            pure_phone: self.inner.pure_phone,
+            country_code: self.inner.country_code,
+            watermark: self.inner.watermark.build(),
+        }
     }
 }
 
@@ -92,26 +136,41 @@ struct PhoneInner {
     #[serde(rename = "purePhoneNumber")]
     pure_phone: String,
     country_code: String,
-    watermark: Watermark,
+    watermark: WatermarkBuilder,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct Watermark {
+    app_id: String,
+    timestamp: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
-struct Watermark {
+struct WatermarkBuilder {
     #[serde(rename = "appid")]
     app_id: String,
     timestamp: u64,
 }
 
-#[async_trait]
-pub trait GetPhone {
-    const PHONE: &str = "https://api.weixin.qq.com/wxa/business/getuserphonenumber";
-
-    async fn get_phone(&self, code: &str, open_id: Option<&str>) -> Result<Phone>;
+impl WatermarkBuilder {
+    fn build(self) -> Watermark {
+        Watermark {
+            app_id: self.app_id,
+            timestamp: self.timestamp,
+        }
+    }
 }
 
 #[async_trait]
-impl GetPhone for GenericAccessToken {
-    async fn get_phone(&self, code: &str, open_id: Option<&str>) -> Result<Phone> {
+pub trait GetContact {
+    const PHONE: &str = "https://api.weixin.qq.com/wxa/business/getuserphonenumber";
+
+    async fn get_contact(&self, code: &str, open_id: Option<&str>) -> Result<Contact>;
+}
+
+#[async_trait]
+impl GetContact for GenericAccessToken {
+    async fn get_contact(&self, code: &str, open_id: Option<&str>) -> Result<Contact> {
         use reqwest::Client;
 
         let mut query = HashMap::new();
@@ -136,13 +195,13 @@ impl GetPhone for GenericAccessToken {
         if response.status().is_success() {
             event!(Level::DEBUG, "get phone info");
 
-            let response = response.json::<Response<Phone>>().await?;
+            let response = response.json::<Response<ContactBuilder>>().await?;
 
-            let phone = response.extract()?;
+            let builder = response.extract()?;
 
-            event!(Level::DEBUG, "phone: {:#?}", phone);
+            event!(Level::DEBUG, "builder: {:#?}", builder);
 
-            Ok(phone)
+            Ok(builder.build())
         } else {
             Err(InternalServer(response.text().await?))
         }

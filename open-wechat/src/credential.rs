@@ -16,7 +16,12 @@ use serde_json::from_slice;
 use tokio::sync::{Notify, RwLock};
 use tracing::{event, instrument, Level};
 
-use crate::{client::Client, error::Error::Unpad, user::User, Result};
+use crate::{
+    client::Client,
+    error::Error::Unpad,
+    user::{User, UserBuilder},
+    Result,
+};
 
 type Aes128CbcDec = Decryptor<Aes128>;
 
@@ -64,11 +69,11 @@ impl Credential {
                 Unpad(error)
             })?;
 
-        let user = from_slice::<User>(&buffer)?;
+        let builder = from_slice::<UserBuilder>(&buffer)?;
 
-        event!(Level::DEBUG, "user info: {:#?}", user);
+        event!(Level::DEBUG, "user info: {:#?}", builder);
 
-        Ok(user)
+        Ok(builder.build())
     }
 }
 
