@@ -47,28 +47,7 @@ impl<T> Response<T> {
     pub fn get(self) -> Result<T, Error> {
         match self {
             Self::Success { data } => Ok(data),
-            Self::Error { code, message } => {
-                use ErrorCode::*;
-
-                let error = match code {
-                    InvalidCredential => Error::InvalidCredential(message),
-                    InvalidGrantType => Error::InvalidGrantType(message),
-                    InvalidAppId => Error::InvalidAppId(message),
-                    InvalidCode => Error::InvalidCode(message),
-                    InvalidSecret => Error::InvalidSecret(message),
-                    ForbiddenIp => Error::ForbiddenIp(message),
-                    CodeBlocked => Error::CodeBlocked(message),
-                    SecretFrozen => Error::SecretFrozen(message),
-                    MissingSecret => Error::MissingSecret(message),
-                    RateLimitExceeded => Error::RateLimitExceeded(message),
-                    ForbiddenToken => Error::ForbiddenToken(message),
-                    AccountFrozen => Error::AccountFrozen(message),
-                    ThirdPartyToken => Error::ThirdPartyToken(message),
-                    System => Error::System(message),
-                };
-
-                Err(error)
-            }
+            Self::Error { code, message } => Err(Error::from((code, message))),
         }
     }
 }
