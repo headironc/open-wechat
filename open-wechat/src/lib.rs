@@ -13,5 +13,9 @@
 #![forbid(unsafe_code)]
 
 pub mod client;
-pub mod credentials;
+pub mod credential;
 pub mod error;
+mod response;
+pub mod user;
+
+pub type Result<T> = std::result::Result<T, error::Error>;

@@ -23,10 +23,9 @@ impl Trace {
         let (non_blocking, _worker_guard) = tracing_appender::non_blocking(appender);
 
         registry()
-            .with(
-                EnvFilter::try_from_default_env()
-                    .unwrap_or(EnvFilter::from("open_wechat_helper=debug,tower_http=info")),
-            )
+            .with(EnvFilter::try_from_default_env().unwrap_or(EnvFilter::from(
+                "open_wechat_helper=debug,tower_http=info,open_wechat=debug",
+            )))
             .with(
                 fmt::layer()
                     .with_writer(non_blocking)

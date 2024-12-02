@@ -11,14 +11,16 @@ repository = "https://github.com/headironc/open-wechat"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.12.5", features = ["json"] }
-async-trait = "0.1.77"
-thiserror = "2.0.3"
-tracing = "0.1.40"
-serde = { version = "1.0.197", features = ["derive"] }
-serde_repr = "0.1.18"
-serde_json = "1.0.114"
-aes = "0.8.4"
-cbc = { version = "0.1.2", features = ["alloc"] }
-base64 = "0.22.0"
-chrono = { version = "0.4.35", features = ["serde"] }
+thiserror = "^2.0.3"
+tracing = "^0.1.41"
+async-trait = "^0.1.83"
+reqwest = { version = "^0.12.9", features = ["json"] }
+serde = { version = "^1.0.215", features = ["derive"] }
+serde_repr = "^0.1.19"
+serde_json = "^1.0.133"
+strum = { version = "^0.26.3", features = ['derive'] }
+aes = "^0.8.4"
+cbc = { version = "^0.1.2", features = ["alloc"] }
+base64 = "^0.22.1"
+chrono = { version = "^0.4.38", features = ["serde"] }
+tokio = { version = "^1.41.1", features = [] }
