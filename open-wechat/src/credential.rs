@@ -49,6 +49,31 @@ impl Credential {
 
     /// 解密用户数据，使用的是 AES-128-CBC 算法，数据采用PKCS#7填充。
     /// https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html
+    /// ```rust
+    /// use axum::{extract::State, response::IntoResponse, Json};
+    /// use open_wechat::client::Client;
+    /// use serde::Deserialize;
+    ///
+    /// use crate::Result;
+    ///
+    /// #[derive(Deserialize, Default)]
+    /// pub(crate) struct EncryptedPayload {
+    ///     code: String,
+    ///     encrypted_data: String,
+    ///     iv: String,
+    /// }
+    ///
+    /// pub(crate) async fn decrypt(
+    ///     State(client): State<Client>,
+    ///     Json(payload): Json<EncryptedPayload>,
+    /// ) -> Result<impl IntoResponse> {
+    ///     let credential = client.login(&payload.code).await?;
+    ///
+    ///     let user = credential.decrypt(&payload.encrypted_data, &payload.iv)?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     #[instrument(skip(self, encrypted_data, iv))]
     pub fn decrypt(&self, encrypted_data: &str, iv: &str) -> Result<User> {
         event!(Level::DEBUG, "encrypted_data: {}", encrypted_data);
@@ -136,6 +161,23 @@ pub trait GetAccessToken {
 
 #[async_trait]
 impl GetAccessToken for GenericAccessToken<AccessToken> {
+    /// ```rust
+    /// use open_wechat::{
+    ///     client::Client,
+    ///     credential::{GenericAccessToken, GetAccessToken}
+    /// };
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let app_id = "your app id";
+    ///     let app_secret = "your app secret";
+    ///    
+    ///     let client = Client::new(app_id, app_secret);
+    ///     
+    ///     let access_token = GenericAccessToken::new(self.client.clone()).await?;
+    ///     
+    ///     Ok(())
+    /// }
     async fn new(client: Client) -> Result<Self> {
         let builder = client.get_access_token().await?;
 
@@ -207,6 +249,24 @@ pub trait GetStableAccessToken {
 
 #[async_trait]
 impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
+    /// ```rust
+    /// use open_wechat::{
+    ///     client::Client,
+    ///     credential::{GenericAccessToken, GetStableAccessToken}
+    /// };
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let app_id = "your app id";
+    ///     let app_secret = "your app secret";
+    ///
+    ///     let client = Client::new(app_id, app_secret);
+    ///
+    ///     let stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     async fn new(client: Client, force_refresh: Option<bool>) -> Result<Self> {
         let builder = client.get_stable_access_token(force_refresh).await?;
 

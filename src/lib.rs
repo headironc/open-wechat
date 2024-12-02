@@ -36,7 +36,8 @@ impl Application {
     pub async fn run(&self) -> Result<()> {
         let listener = self.setup.listener().await?;
 
-        let _access_token = GenericAccessToken::new(self.client.clone(), None).await?;
+        // let _access_token = GenericAccessToken::new(self.client.clone()).await?;
+        let _stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
 
         let routes = interfaces::routes(self.client.clone());
 
