@@ -16,6 +16,19 @@ pub struct Client {
 }
 
 impl Client {
+    /// ```rust
+    /// use open_wechat::client::Client;
+    ///
+    /// #[tokio::main]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let app_id = "your app id";
+    ///     let secret = "your app secret";
+    ///     
+    ///     let client = Client::new(app_id, secret);
+    ///
+    ///     Ok(())
+    /// }
+    /// ```
     pub fn new(app_id: &str, secret: &str) -> Self {
         let client = reqwest::Client::new();
 
@@ -32,6 +45,28 @@ impl Client {
 
     /// 登录凭证校验
     /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
+    /// ```rust
+    /// use axum::{extract::State, response::IntoResponse, Json};
+    /// use open_wechat::client::Client;
+    /// use serde::Deserialize;
+
+    /// use crate::Result;
+
+    /// #[derive(Deserialize, Default)]
+    /// #[serde(default)]
+    /// pub(crate) struct Logger {
+    ///     code: String,
+    /// }
+
+    /// pub(crate) async fn login(
+    ///     State(client): State<Client>,
+    ///     Json(logger): Json<Logger>,
+    /// ) -> Result<impl IntoResponse> {
+    ///    let credential = client.login(&logger.code).await?;
+
+    ///     Ok(())
+    /// }
+    /// ```
     #[instrument(skip(self, code))]
     pub async fn login(&self, code: &str) -> Result<Credential> {
         event!(Level::DEBUG, "code: {}", code);
