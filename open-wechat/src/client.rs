@@ -32,7 +32,7 @@ impl Client {
 
     /// 登录凭证校验
     /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
-    #[instrument(skip(self))]
+    #[instrument(skip(self, code))]
     pub async fn login(&self, code: &str) -> Result<Credential> {
         event!(Level::DEBUG, "code: {}", code);
 
@@ -54,13 +54,11 @@ impl Client {
         event!(Level::DEBUG, "authentication response: {:#?}", response);
 
         if response.status().is_success() {
-            event!(Level::DEBUG, "get credentials");
-
             let response = response.json::<Response<Credential>>().await?;
 
             let credential = response.extract()?;
 
-            event!(Level::DEBUG, "credentials: {:#?}", credential);
+            event!(Level::DEBUG, "credential: {:#?}", credential);
 
             Ok(credential)
         } else {
@@ -91,8 +89,6 @@ impl Client {
         event!(Level::DEBUG, "response: {:#?}", response);
 
         if response.status().is_success() {
-            event!(Level::DEBUG, "get access_token");
-
             let res = response.json::<Response<AccessTokenBuilder>>().await?;
 
             let builder = res.extract()?;
@@ -109,11 +105,13 @@ impl Client {
 
     /// 获取小程序全局唯一后台接口调用凭据（access_token）
     /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/mp-access-token/getStableAccessToken.html
-    #[instrument(skip(self))]
+    #[instrument(skip(self, force_refresh))]
     pub(crate) async fn get_stable_access_token(
         &self,
         force_refresh: Option<bool>,
     ) -> Result<AccessTokenBuilder> {
+        event!(Level::DEBUG, "force fresh: {:#?}", force_refresh);
+
         let mut map: HashMap<&str, String> = HashMap::new();
 
         map.insert("grant_type", "client_credential".into());
@@ -135,8 +133,6 @@ impl Client {
         event!(Level::DEBUG, "response: {:#?}", response);
 
         if response.status().is_success() {
-            event!(Level::DEBUG, "get stable access_token");
-
             let response = response.json::<Response<AccessTokenBuilder>>().await?;
 
             let builder = response.extract()?;

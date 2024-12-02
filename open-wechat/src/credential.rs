@@ -49,8 +49,11 @@ impl Credential {
 
     /// 解密用户数据，使用的是 AES-128-CBC 算法，数据采用PKCS#7填充。
     /// https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html
-    #[instrument(skip(self))]
+    #[instrument(skip(self, encrypted_data, iv))]
     pub fn decrypt(&self, encrypted_data: &str, iv: &str) -> Result<User> {
+        event!(Level::DEBUG, "encrypted_data: {}", encrypted_data);
+        event!(Level::DEBUG, "iv: {}", iv);
+
         let key = STANDARD.decode(self.session_key.as_bytes())?;
         let iv = STANDARD.decode(iv.as_bytes())?;
 
@@ -63,15 +66,11 @@ impl Credential {
 
         let buffer = decryptor
             .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)
-            .map_err(|error| {
-                event!(Level::ERROR, "error: {}", error);
-
-                Unpad(error)
-            })?;
+            .map_err(Unpad)?;
 
         let builder = from_slice::<UserBuilder>(&buffer)?;
 
-        event!(Level::DEBUG, "user info: {:#?}", builder);
+        event!(Level::DEBUG, "user builder: {:#?}", builder);
 
         Ok(builder.build())
     }
@@ -83,6 +82,7 @@ impl std::fmt::Debug for Credential {
         f.debug_struct("Credentials")
             .field("open_id", &self.open_id)
             .field("session_key", &"********")
+            .field("union_id", &self.union_id)
             .finish()
     }
 }
@@ -112,6 +112,7 @@ impl std::fmt::Debug for StableAccessToken {
         f.debug_struct("StableAccessToken")
             .field("access_token", &"********")
             .field("expired_at", &self.expired_at)
+            .field("force_refresh", &self.force_refresh)
             .finish()
     }
 }
@@ -150,15 +151,25 @@ impl GetAccessToken for GenericAccessToken<AccessToken> {
     }
 
     async fn access_token(&self) -> Result<String> {
+        event!(Level::DEBUG, "read access token guard");
+
         let guard = self.inner.read().await;
 
         if guard.expired_at <= Utc::now() {
+            event!(Level::DEBUG, "expired at: {}", guard.expired_at);
+
             if self.refreshing.load(Ordering::Acquire) {
+                event!(Level::DEBUG, "refreshing");
+
                 self.notify.notified().await;
             } else {
+                event!(Level::DEBUG, "prepare to fresh");
+
                 self.refreshing.store(true, Ordering::Release);
 
                 drop(guard);
+
+                event!(Level::DEBUG, "write access token guard");
 
                 let mut guard = self.inner.write().await;
 
@@ -171,9 +182,13 @@ impl GetAccessToken for GenericAccessToken<AccessToken> {
 
                 self.notify.notify_waiters();
 
+                event!(Level::DEBUG, "fresh access token: {:#?}", guard);
+
                 return Ok(guard.access_token.clone());
             }
         }
+
+        event!(Level::DEBUG, "access token not expired");
 
         Ok(guard.access_token.clone())
     }
@@ -208,15 +223,25 @@ impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
     }
 
     async fn access_token(&self) -> Result<String> {
+        event!(Level::DEBUG, "read stable access token guard");
+
         let guard = self.inner.read().await;
 
         if guard.expired_at <= Utc::now() {
+            event!(Level::DEBUG, "expired at: {}", guard.expired_at);
+
             if self.refreshing.load(Ordering::Acquire) {
+                event!(Level::DEBUG, "refreshing");
+
                 self.notify.notified().await;
             } else {
+                event!(Level::DEBUG, "prepare to fresh");
+
                 self.refreshing.store(true, Ordering::Release);
 
                 drop(guard);
+
+                event!(Level::DEBUG, "write stable access token guard");
 
                 let mut guard = self.inner.write().await;
 
@@ -232,9 +257,13 @@ impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
 
                 self.notify.notify_waiters();
 
+                event!(Level::DEBUG, "fresh stable access token: {:#?}", guard);
+
                 return Ok(guard.access_token.clone());
             }
         }
+
+        event!(Level::DEBUG, "stable access token not expired");
 
         Ok(guard.access_token.clone())
     }
