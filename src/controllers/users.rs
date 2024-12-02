@@ -1,5 +1,8 @@
 use axum::{extract::State, response::IntoResponse, Json};
-use open_wechat::client::Client;
+use open_wechat::{
+    client::Client,
+    credential::{GenericAccessToken, GetAccessToken},
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -39,6 +42,16 @@ pub(crate) async fn decrypt(
 
     Ok(Json(json!({
         "user": user,
+    })))
+}
+
+pub(crate) async fn get_access_token(
+    State(access_token): State<GenericAccessToken>,
+) -> Result<impl IntoResponse> {
+    let access_token = access_token.access_token().await?;
+
+    Ok(Json(json!({
+        "access_token": access_token,
     })))
 }
 

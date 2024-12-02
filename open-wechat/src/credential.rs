@@ -112,6 +112,7 @@ impl std::fmt::Debug for Credential {
     }
 }
 
+#[derive(Clone)]
 pub struct AccessToken {
     access_token: String,
     expired_at: DateTime<Utc>,
@@ -126,6 +127,7 @@ impl std::fmt::Debug for AccessToken {
     }
 }
 
+#[derive(Clone)]
 pub struct StableAccessToken {
     access_token: String,
     expired_at: DateTime<Utc>,

@@ -7,7 +7,7 @@ mod utils;
 
 use open_wechat::{
     client::Client,
-    credential::{GenericAccessToken, GetStableAccessToken},
+    credential::{GenericAccessToken, GetAccessToken},
 };
 use tracing::{event, instrument, Level};
 
@@ -36,10 +36,10 @@ impl Application {
     pub async fn run(&self) -> Result<()> {
         let listener = self.setup.listener().await?;
 
-        // let _access_token = GenericAccessToken::new(self.client.clone()).await?;
-        let _stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
+        let access_token = GenericAccessToken::new(self.client.clone()).await?;
+        // let _stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
 
-        let routes = interfaces::routes(self.client.clone());
+        let routes = interfaces::routes(self.client.clone(), access_token.clone());
 
         event!(Level::INFO, "on http://{}", listener.local_addr()?);
 
