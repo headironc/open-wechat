@@ -12,7 +12,7 @@ pub(super) fn routes(client: Client, access_token: GenericAccessToken) -> Router
         .route("/decrypt", post(decrypt))
         .with_state(client)
         .route(
-            "/access_token",
+            "/access-token",
             get(get_access_token).with_state(access_token),
         )
 }
