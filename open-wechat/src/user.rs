@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
 
 use crate::{
-    credential::GenericAccessToken, error::Error::InternalServer, response::Response, Result,
+    credential::{GenericAccessToken, GetAccessToken, GetStableAccessToken, StableAccessToken},
+    error::Error::InternalServer,
+    response::Response,
+    Result,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -83,19 +86,19 @@ impl UserBuilder {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Contact {
-    phone: String,
-    pure_phone: String,
+    phone_number: String,
+    pure_phone_number: String,
     country_code: String,
     watermark: Watermark,
 }
 
 impl Contact {
-    pub fn phone(&self) -> &str {
-        &self.phone
+    pub fn phone_number(&self) -> &str {
+        &self.phone_number
     }
 
-    pub fn pure_phone(&self) -> &str {
-        &self.pure_phone
+    pub fn pure_phone_number(&self) -> &str {
+        &self.pure_phone_number
     }
 
     pub fn country_code(&self) -> &str {
@@ -120,8 +123,8 @@ pub(crate) struct ContactBuilder {
 impl ContactBuilder {
     pub(crate) fn build(self) -> Contact {
         Contact {
-            phone: self.inner.phone,
-            pure_phone: self.inner.pure_phone,
+            phone_number: self.inner.phone_number,
+            pure_phone_number: self.inner.pure_phone_number,
             country_code: self.inner.country_code,
             watermark: self.inner.watermark.build(),
         }
@@ -132,9 +135,9 @@ impl ContactBuilder {
 #[serde(rename_all = "camelCase")]
 struct PhoneInner {
     #[serde(rename = "phoneNumber")]
-    phone: String,
+    phone_number: String,
     #[serde(rename = "purePhoneNumber")]
-    pure_phone: String,
+    pure_phone_number: String,
     country_code: String,
     watermark: WatermarkBuilder,
 }
@@ -173,10 +176,12 @@ impl GetContact for GenericAccessToken {
     async fn get_contact(&self, code: &str, open_id: Option<&str>) -> Result<Contact> {
         use reqwest::Client;
 
+        event!(Level::DEBUG, "code: {}, open_id: {:?}", code, open_id);
+
         let mut query = HashMap::new();
         let mut body = HashMap::new();
 
-        query.insert("access_token", "access_token");
+        query.insert("access_token", self.access_token().await?);
         body.insert("code", code);
 
         if let Some(open_id) = open_id {
@@ -193,13 +198,51 @@ impl GetContact for GenericAccessToken {
         event!(Level::DEBUG, "response: {:#?}", response);
 
         if response.status().is_success() {
-            event!(Level::DEBUG, "get phone info");
-
             let response = response.json::<Response<ContactBuilder>>().await?;
 
             let builder = response.extract()?;
 
-            event!(Level::DEBUG, "builder: {:#?}", builder);
+            event!(Level::DEBUG, "contact builder: {:#?}", builder);
+
+            Ok(builder.build())
+        } else {
+            Err(InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+impl GetContact for GenericAccessToken<StableAccessToken> {
+    async fn get_contact(&self, code: &str, open_id: Option<&str>) -> Result<Contact> {
+        use reqwest::Client;
+
+        event!(Level::DEBUG, "code: {}, open_id: {:?}", code, open_id);
+
+        let mut query = HashMap::new();
+        let mut body = HashMap::new();
+
+        query.insert("access_token", self.access_token().await?);
+        body.insert("code", code);
+
+        if let Some(open_id) = open_id {
+            body.insert("openid", open_id);
+        }
+
+        let response = Client::new()
+            .post(Self::PHONE)
+            .query(&query)
+            .json(&body)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<ContactBuilder>>().await?;
+
+            let builder = response.extract()?;
+
+            event!(Level::DEBUG, "contact builder: {:#?}", builder);
 
             Ok(builder.build())
         } else {
