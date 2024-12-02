@@ -4,7 +4,7 @@ use tracing::{event, instrument, Level};
 
 use super::{Client, Response};
 use crate::credentials::{AccessToken, Credentials};
-use crate::error::Error::{self, Internal};
+use crate::error::Error::{self, InternalServer};
 
 static AUTH_URI: &str = "https://api.weixin.qq.com/sns/jscode2session";
 static ACCESS_TOKEN_URI: &str = "https://api.weixin.qq.com/cgi-bin/token";
@@ -45,7 +45,7 @@ impl Authenticate for Client {
 
             Ok(credential)
         } else {
-            Err(Internal(res.text().await?))
+            Err(InternalServer(res.text().await?))
         }
     }
 }
@@ -87,7 +87,7 @@ impl GetAccessToken for Client {
 
             Ok(access_token)
         } else {
-            Err(Internal(res.text().await?))
+            Err(InternalServer(res.text().await?))
         }
     }
 }
@@ -139,7 +139,7 @@ impl GetStableAccessToken for Client {
 
             Ok(access_token)
         } else {
-            Err(Internal(res.text().await?))
+            Err(InternalServer(res.text().await?))
         }
     }
 }

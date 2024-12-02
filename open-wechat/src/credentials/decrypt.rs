@@ -10,7 +10,7 @@ use tracing::{event, instrument, Level};
 
 use super::{AccessToken, Credentials, PhoneInfo, UserInfo};
 use crate::client::Response;
-use crate::error::Error::{self, Internal};
+use crate::error::Error::{self, InternalServer};
 
 type Aes128CbcDec = Decryptor<Aes128>;
 
@@ -40,10 +40,10 @@ impl Decrypt for Credentials {
 
         let buffer = decryptor
             .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)
-            .map_err(|e| {
-                event!(Level::ERROR, "error: {}", e);
+            .map_err(|error| {
+                event!(Level::ERROR, "error: {}", error);
 
-                Error::Unpad(e.to_string())
+                Error::Unpad(error)
             })?;
 
         let user_info = from_slice::<UserInfo>(&buffer)?;
@@ -104,7 +104,7 @@ impl GetPhoneNumber for AccessToken {
 
             Ok(phone_info)
         } else {
-            Err(Internal(res.text().await?))
+            Err(InternalServer(res.text().await?))
         }
     }
 }
