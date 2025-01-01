@@ -18,7 +18,6 @@ use tracing::{event, instrument, Level};
 
 use crate::{
     client::Client,
-    error::Error::Unpad,
     user::{User, UserBuilder},
     Result,
 };
@@ -88,9 +87,7 @@ impl Credential {
 
         let encrypted_data = STANDARD.decode(encrypted_data.as_bytes())?;
 
-        let buffer = decryptor
-            .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)
-            .map_err(Unpad)?;
+        let buffer = decryptor.decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)?;
 
         let builder = from_slice::<UserBuilder>(&buffer)?;
 

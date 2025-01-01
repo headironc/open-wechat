@@ -63,6 +63,12 @@ pub enum Error {
     InternalServer(String),
 }
 
+impl From<UnpadError> for Error {
+    fn from(error: UnpadError) -> Self {
+        Error::Unpad(error)
+    }
+}
+
 /// 微信小程序返回的错误码
 #[derive(Debug, Deserialize_repr, Display)]
 #[repr(i32)]
