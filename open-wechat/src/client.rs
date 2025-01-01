@@ -143,17 +143,17 @@ impl Client {
     #[instrument(skip(self, force_refresh))]
     pub(crate) async fn get_stable_access_token(
         &self,
-        force_refresh: Option<bool>,
+        force_refresh: impl Into<Option<bool>>,
     ) -> Result<AccessTokenBuilder> {
-        event!(Level::DEBUG, "force fresh: {:#?}", force_refresh);
-
         let mut map: HashMap<&str, String> = HashMap::new();
 
         map.insert("grant_type", "client_credential".into());
         map.insert("appid", self.inner.app_id.clone());
         map.insert("secret", self.inner.secret.clone());
 
-        if let Some(force_refresh) = force_refresh {
+        if let Some(force_refresh) = force_refresh.into() {
+            event!(Level::DEBUG, "force_refresh: {}", force_refresh);
+
             map.insert("force_refresh", force_refresh.to_string());
         }
 

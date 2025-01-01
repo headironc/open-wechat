@@ -255,7 +255,10 @@ impl GetAccessToken for GenericAccessToken<AccessToken> {
 
 #[async_trait]
 pub trait GetStableAccessToken {
-    async fn new(client: Client, force_refresh: Option<bool>) -> Result<Self>
+    async fn new(
+        client: Client,
+        force_refresh: impl Into<Option<bool>> + Clone + Send,
+    ) -> Result<Self>
     where
         Self: Sized;
 
@@ -284,14 +287,19 @@ impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
     ///     Ok(())
     /// }
     /// ```
-    async fn new(client: Client, force_refresh: Option<bool>) -> Result<Self> {
-        let builder = client.get_stable_access_token(force_refresh).await?;
+    async fn new(
+        client: Client,
+        force_refresh: impl Into<Option<bool>> + Clone + Send,
+    ) -> Result<Self> {
+        let builder = client
+            .get_stable_access_token(force_refresh.clone())
+            .await?;
 
         Ok(Self {
             inner: Arc::new(RwLock::new(StableAccessToken {
                 access_token: builder.access_token,
                 expired_at: builder.expired_at,
-                force_refresh,
+                force_refresh: force_refresh.into(),
             })),
             refreshing: Arc::new(AtomicBool::new(false)),
             notify: Arc::new(Notify::new()),
