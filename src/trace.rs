@@ -15,7 +15,7 @@ impl Trace {
         let directory = directory("logs").await?;
 
         let appender = Builder::new()
-            .rotation(Rotation::HOURLY)
+            .rotation(Rotation::DAILY)
             .max_log_files(usize::MAX)
             .filename_suffix("log")
             .build(directory)?;
