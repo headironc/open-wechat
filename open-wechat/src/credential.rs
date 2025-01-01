@@ -446,3 +446,38 @@ impl CheckSessionKey for GenericAccessToken<AccessToken> {
         }
     }
 }
+
+#[async_trait]
+impl CheckSessionKey for GenericAccessToken<StableAccessToken> {
+    #[instrument(skip(self, open_id, session_key))]
+    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::CHECK_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<()>>().await?;
+
+            response.extract()
+        } else {
+            Err(crate::error::Error::InternalServer(response.text().await?))
+        }
+    }
+}
