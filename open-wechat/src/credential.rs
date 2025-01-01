@@ -104,7 +104,7 @@ impl Credential {
 impl std::fmt::Debug for Credential {
     // 为了安全，不打印 session_key
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Credentials")
+        f.debug_struct("Credential")
             .field("open_id", &self.open_id)
             .field("session_key", &"********")
             .field("union_id", &self.union_id)
