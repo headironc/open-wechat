@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
 
 use crate::{
-    credential::{AccessTokenBuilder, Credential},
+    credential::{AccessTokenBuilder, Credential, CredentialBuilder},
     error::Error::InternalServer,
     response::Response,
     Result,
@@ -89,9 +89,9 @@ impl Client {
         event!(Level::DEBUG, "authentication response: {:#?}", response);
 
         if response.status().is_success() {
-            let response = response.json::<Response<Credential>>().await?;
+            let response = response.json::<Response<CredentialBuilder>>().await?;
 
-            let credential = response.extract()?;
+            let credential = response.extract()?.build();
 
             event!(Level::DEBUG, "credential: {:#?}", credential);
 

@@ -27,10 +27,9 @@ type Aes128CbcDec = Decryptor<Aes128>;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Credential {
-    #[serde(rename = "openid")]
     open_id: String,
     session_key: String,
-    #[serde(rename = "unionid", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     union_id: Option<String>,
 }
 
@@ -109,6 +108,25 @@ impl std::fmt::Debug for Credential {
             .field("session_key", &"********")
             .field("union_id", &self.union_id)
             .finish()
+    }
+}
+
+#[derive(Deserialize)]
+pub(crate) struct CredentialBuilder {
+    #[serde(rename = "openid")]
+    open_id: String,
+    session_key: String,
+    #[serde(rename = "unionid")]
+    union_id: Option<String>,
+}
+
+impl CredentialBuilder {
+    pub(crate) fn build(self) -> Credential {
+        Credential {
+            open_id: self.open_id,
+            session_key: self.session_key,
+            union_id: self.union_id,
+        }
     }
 }
 
