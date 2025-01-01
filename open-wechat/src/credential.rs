@@ -24,6 +24,7 @@ use tracing::{event, instrument, Level};
 
 use crate::{
     client::Client,
+    error::Error::InternalServer,
     response::Response,
     user::{User, UserBuilder},
     Result,
@@ -131,6 +132,16 @@ impl CredentialBuilder {
             session_key: self.session_key,
             union_id: self.union_id,
         }
+    }
+}
+
+impl std::fmt::Debug for CredentialBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CredentialBuilder")
+            .field("open_id", &self.open_id)
+            .field("session_key", &"********")
+            .field("union_id", &self.union_id)
+            .finish()
     }
 }
 
@@ -407,15 +418,15 @@ pub trait CheckSessionKey {
 
     /// 检查登录态是否过期
     /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/checkSessionKey.html
-    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()>;
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()>;
 }
 
 type HmacSha256 = Hmac<Sha256>;
 
 #[async_trait]
 impl CheckSessionKey for GenericAccessToken<AccessToken> {
-    #[instrument(skip(self, open_id, session_key))]
-    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()> {
+    #[instrument(skip(self, session_key, open_id))]
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()> {
         let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
         mac.update(b"");
         let hasher = mac.finalize();
@@ -449,8 +460,8 @@ impl CheckSessionKey for GenericAccessToken<AccessToken> {
 
 #[async_trait]
 impl CheckSessionKey for GenericAccessToken<StableAccessToken> {
-    #[instrument(skip(self, open_id, session_key))]
-    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()> {
+    #[instrument(skip(self, session_key, open_id))]
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()> {
         let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
         mac.update(b"");
         let hasher = mac.finalize();
@@ -477,7 +488,96 @@ impl CheckSessionKey for GenericAccessToken<StableAccessToken> {
 
             response.extract()
         } else {
-            Err(crate::error::Error::InternalServer(response.text().await?))
+            Err(InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+pub trait ResetSessionKey {
+    const RESET_SESSION_KEY: &'static str = "https://api.weixin.qq.com/wxa/resetusersessionkey";
+
+    /// 重置用户的 session_key
+    /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/ResetUserSessionKey.html
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential>;
+}
+
+#[async_trait]
+impl ResetSessionKey for GenericAccessToken<AccessToken> {
+    #[instrument(skip(self, open_id))]
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("access_token", self.access_token().await?);
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::RESET_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<CredentialBuilder>>().await?;
+
+            let credential = response.extract()?.build();
+
+            event!(Level::DEBUG, "credential: {:#?}", credential);
+
+            Ok(credential)
+        } else {
+            Err(InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+impl ResetSessionKey for GenericAccessToken<StableAccessToken> {
+    #[instrument(skip(self, open_id))]
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("access_token", self.access_token().await?);
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::RESET_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<CredentialBuilder>>().await?;
+
+            let credential = response.extract()?.build();
+
+            event!(Level::DEBUG, "credential: {:#?}", credential);
+
+            Ok(credential)
+        } else {
+            Err(InternalServer(response.text().await?))
         }
     }
 }
