@@ -1,7 +1,7 @@
 use axum::{extract::State, response::IntoResponse, Json};
 use open_wechat::{
     client::Client,
-    credential::{GenericAccessToken, GetAccessToken},
+    credential::{CheckSessionKey, GenericAccessToken, GetAccessToken},
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -67,3 +67,23 @@ pub(crate) async fn get_access_token(
 //         "message": "get mobile",
 //     })))
 // }
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+pub(crate) struct SessionKeyChecker {
+    open_id: String,
+    session_key: String,
+}
+
+pub(crate) async fn check_session_key(
+    State(access_token): State<GenericAccessToken>,
+    JsonDecoder(checker): JsonDecoder<SessionKeyChecker>,
+) -> Result<impl IntoResponse> {
+    access_token
+        .check_session_key(&checker.open_id, &checker.session_key)
+        .await?;
+
+    Ok(Json(json!({
+        "message": "session key is valid",
+    })))
+}
