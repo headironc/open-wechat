@@ -7,6 +7,6 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "github-actions"
-    directory: "/open-wechat"
+    directory: "/"
     schedule:
       interval: "daily"
