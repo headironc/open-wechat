@@ -41,6 +41,10 @@ impl Client {
         }
     }
 
+    pub(crate) fn request(&self) -> &reqwest::Client {
+        &self.inner.client
+    }
+
     const AUTHENTICATION: &'static str = "https://api.weixin.qq.com/sns/jscode2session";
 
     /// 登录凭证校验

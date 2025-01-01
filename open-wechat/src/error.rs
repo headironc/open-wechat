@@ -1,6 +1,7 @@
 use serde_repr::Deserialize_repr;
 
 use aes::cipher::block_padding::UnpadError;
+use aes::cipher::InvalidLength as AesInvalidLength;
 use base64::DecodeError as Base64DecodeError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeJsonError;
@@ -45,6 +46,8 @@ pub enum Error {
     AccountFrozen(String),
     #[error("third party token: {0}")]
     ThirdPartyToken(String),
+    #[error("invalid signature: {0}")]
+    InvalidSignature(String),
     #[error("confirm required: {0}")]
     ConfirmRequired(String),
     #[error("request denied one day: {0}")]
@@ -53,6 +56,8 @@ pub enum Error {
     RequestDeniedOneHour(String),
     #[error("unpad error: {0}")]
     Unpad(UnpadError),
+    #[error("aes invalid length: {0}")]
+    AesInvalidLength(#[from] AesInvalidLength),
     #[error("base64 decode error: {0}")]
     Base64Decode(#[from] Base64DecodeError),
     #[error("reqwest: {0}")]
@@ -110,6 +115,8 @@ pub enum ErrorCode {
     AccountFrozen = 50007,
     #[strum(serialize = "第三方平台 API 需要使用第三方平台专用 token")]
     ThirdPartyToken = 61024,
+    #[strum(serialize = "无效的签名")]
+    InvalidSignature = 87009,
     #[strum(serialize = "此次调用需要管理员确认，请耐心等候")]
     ConfirmRequired = 89503,
     #[strum(
@@ -145,6 +152,7 @@ impl From<(ErrorCode, String)> for Error {
             ForbiddenToken => Error::ForbiddenToken(message),
             AccountFrozen => Error::AccountFrozen(message),
             ThirdPartyToken => Error::ThirdPartyToken(message),
+            InvalidSignature => Error::InvalidSignature(message),
             ConfirmRequired => Error::ConfirmRequired(message),
             RequestDeniedOneDay => Error::RequestDeniedOneDay(message),
             RequestDeniedOneHour => Error::RequestDeniedOneHour(message),

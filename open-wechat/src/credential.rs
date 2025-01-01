@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use aes::{
@@ -11,13 +14,17 @@ use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use cbc::Decryptor;
 use chrono::{DateTime, Duration, Utc};
+use hex::encode;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::from_slice;
+use sha2::Sha256;
 use tokio::sync::{Notify, RwLock};
 use tracing::{event, instrument, Level};
 
 use crate::{
     client::Client,
+    response::Response,
     user::{User, UserBuilder},
     Result,
 };
@@ -391,5 +398,51 @@ impl std::fmt::Debug for AccessTokenBuilder {
             .field("access_token", &"********")
             .field("expired_at", &self.expired_at)
             .finish()
+    }
+}
+
+#[async_trait]
+pub trait CheckSessionKey {
+    const CHECK_SESSION_KEY: &'static str = "https://api.weixin.qq.com/wxa/checksession";
+
+    /// 检查登录态是否过期
+    /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/checkSessionKey.html
+    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()>;
+}
+
+type HmacSha256 = Hmac<Sha256>;
+
+#[async_trait]
+impl CheckSessionKey for GenericAccessToken<AccessToken> {
+    #[instrument(skip(self, open_id, session_key))]
+    async fn check_session_key(&self, open_id: &str, session_key: &str) -> Result<()> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::CHECK_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<()>>().await?;
+
+            response.extract()
+        } else {
+            Err(crate::error::Error::InternalServer(response.text().await?))
+        }
     }
 }
