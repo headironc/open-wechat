@@ -1,6 +1,6 @@
 [package]
 name = "open-wechat"
-version = "1.0.3"
+version = "1.1.0"
 edition = "2021"
 authors = ["HeadIron <i@liangzhicheng.cc>"]
 description = "A rust sdk for wechat miniprogram open api"
