@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use tracing::{event, instrument, Level};
 
 use crate::{
-    credential::{AccessTokenBuilder, Credential},
+    credential::{AccessTokenBuilder, Credential, CredentialBuilder},
     error::Error::InternalServer,
     response::Response,
     Result,
@@ -39,6 +39,10 @@ impl Client {
                 client,
             }),
         }
+    }
+
+    pub(crate) fn request(&self) -> &reqwest::Client {
+        &self.inner.client
     }
 
     const AUTHENTICATION: &'static str = "https://api.weixin.qq.com/sns/jscode2session";
@@ -89,9 +93,9 @@ impl Client {
         event!(Level::DEBUG, "authentication response: {:#?}", response);
 
         if response.status().is_success() {
-            let response = response.json::<Response<Credential>>().await?;
+            let response = response.json::<Response<CredentialBuilder>>().await?;
 
-            let credential = response.extract()?;
+            let credential = response.extract()?.build();
 
             event!(Level::DEBUG, "credential: {:#?}", credential);
 
@@ -143,17 +147,17 @@ impl Client {
     #[instrument(skip(self, force_refresh))]
     pub(crate) async fn get_stable_access_token(
         &self,
-        force_refresh: Option<bool>,
+        force_refresh: impl Into<Option<bool>>,
     ) -> Result<AccessTokenBuilder> {
-        event!(Level::DEBUG, "force fresh: {:#?}", force_refresh);
-
         let mut map: HashMap<&str, String> = HashMap::new();
 
         map.insert("grant_type", "client_credential".into());
         map.insert("appid", self.inner.app_id.clone());
         map.insert("secret", self.inner.secret.clone());
 
-        if let Some(force_refresh) = force_refresh {
+        if let Some(force_refresh) = force_refresh.into() {
+            event!(Level::DEBUG, "force_refresh: {}", force_refresh);
+
             map.insert("force_refresh", force_refresh.to_string());
         }
 

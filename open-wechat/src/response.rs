@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use tracing::{event, Level};
 
 use crate::{error::ErrorCode, Result};
 
@@ -23,7 +24,16 @@ impl<T> Response<T> {
     pub(crate) fn extract(self) -> Result<T> {
         match self {
             Self::Success { data } => Ok(data),
-            Self::Error { code, message } => Err((code, message).into()),
+            Self::Error { code, message } => {
+                event!(
+                    Level::ERROR,
+                    "微信小程序返回错误: code={}, message={}",
+                    code,
+                    message
+                );
+
+                Err((code, message).into())
+            }
         }
     }
 }

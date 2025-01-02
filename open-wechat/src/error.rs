@@ -1,6 +1,7 @@
 use serde_repr::Deserialize_repr;
 
 use aes::cipher::block_padding::UnpadError;
+use aes::cipher::InvalidLength as AesInvalidLength;
 use base64::DecodeError as Base64DecodeError;
 use reqwest::Error as ReqwestError;
 use serde_json::Error as SerdeJsonError;
@@ -19,6 +20,8 @@ pub enum Error {
     InvalidAppId(String),
     #[error("invalid code: {0}")]
     InvalidCode(String),
+    #[error("invalid parameter: {0}")]
+    InvalidParameter(String),
     #[error("invalid secret: {0}")]
     InvalidSecret(String),
     #[error("forbidden ip: {0}")]
@@ -27,6 +30,8 @@ pub enum Error {
     CodeBlocked(String),
     #[error("secret frozen: {0}")]
     SecretFrozen(String),
+    #[error("missing access token: {0}")]
+    MissingAccessToken(String),
     #[error("missing app id: {0}")]
     MissingAppId(String),
     #[error("missing secret: {0}")]
@@ -45,6 +50,12 @@ pub enum Error {
     AccountFrozen(String),
     #[error("third party token: {0}")]
     ThirdPartyToken(String),
+    #[error("session key not existed or expired: {0}")]
+    SessionKeyNotExistedOrExpired(String),
+    #[error("invalid signature method: {0}")]
+    InvalidSignatureMethod(String),
+    #[error("invalid signature: {0}")]
+    InvalidSignature(String),
     #[error("confirm required: {0}")]
     ConfirmRequired(String),
     #[error("request denied one day: {0}")]
@@ -53,6 +64,8 @@ pub enum Error {
     RequestDeniedOneHour(String),
     #[error("unpad error: {0}")]
     Unpad(UnpadError),
+    #[error("aes invalid length: {0}")]
+    AesInvalidLength(#[from] AesInvalidLength),
     #[error("base64 decode error: {0}")]
     Base64Decode(#[from] Base64DecodeError),
     #[error("reqwest: {0}")]
@@ -61,6 +74,12 @@ pub enum Error {
     SerdeJson(#[from] SerdeJsonError),
     #[error("internal error: {0}")]
     InternalServer(String),
+}
+
+impl From<UnpadError> for Error {
+    fn from(error: UnpadError) -> Self {
+        Error::Unpad(error)
+    }
 }
 
 /// 微信小程序返回的错误码
@@ -79,6 +98,8 @@ pub enum ErrorCode {
     InvalidAppId = 40013,
     #[strum(serialize = "code 无效")]
     InvalidCode = 40029,
+    #[strum(serialize = "参数错误")]
+    InvalidParameter = 40097,
     #[strum(serialize = "无效的appsecret，请检查appsecret的正确性")]
     InvalidSecret = 40125,
     #[strum(serialize = "将ip添加到ip白名单列表即可")]
@@ -87,6 +108,8 @@ pub enum ErrorCode {
     CodeBlocked = 40226,
     #[strum(serialize = "AppSecret已被冻结，请登录小程序平台解冻后再次调用")]
     SecretFrozen = 40243,
+    #[strum(serialize = "缺少 access token 参数")]
+    MissingAccessToken = 41001,
     #[strum(serialize = "缺少 appid 参数")]
     MissingAppId = 41002,
     #[strum(serialize = "缺少 secret 参数")]
@@ -104,6 +127,12 @@ pub enum ErrorCode {
     AccountFrozen = 50007,
     #[strum(serialize = "第三方平台 API 需要使用第三方平台专用 token")]
     ThirdPartyToken = 61024,
+    #[strum(serialize = "session_key is not existed or expired")]
+    SessionKeyNotExistedOrExpired = 87007,
+    #[strum(serialize = "invalid sig_method")]
+    InvalidSignatureMethod = 87008,
+    #[strum(serialize = "无效的签名")]
+    InvalidSignature = 87009,
     #[strum(serialize = "此次调用需要管理员确认，请耐心等候")]
     ConfirmRequired = 89503,
     #[strum(
@@ -126,10 +155,12 @@ impl From<(ErrorCode, String)> for Error {
             InvalidGrantType => Error::InvalidGrantType(message),
             InvalidAppId => Error::InvalidAppId(message),
             InvalidCode => Error::InvalidCode(message),
+            InvalidParameter => Error::InvalidParameter(message),
             InvalidSecret => Error::InvalidSecret(message),
             ForbiddenIp => Error::ForbiddenIp(message),
             CodeBlocked => Error::CodeBlocked(message),
             SecretFrozen => Error::SecretFrozen(message),
+            MissingAccessToken => Error::MissingAccessToken(message),
             MissingAppId => Error::MissingAppId(message),
             MissingSecret => Error::MissingSecret(message),
             MissingCode => Error::MissingCode(message),
@@ -139,6 +170,9 @@ impl From<(ErrorCode, String)> for Error {
             ForbiddenToken => Error::ForbiddenToken(message),
             AccountFrozen => Error::AccountFrozen(message),
             ThirdPartyToken => Error::ThirdPartyToken(message),
+            SessionKeyNotExistedOrExpired => Error::SessionKeyNotExistedOrExpired(message),
+            InvalidSignatureMethod => Error::InvalidSignatureMethod(message),
+            InvalidSignature => Error::InvalidSignature(message),
             ConfirmRequired => Error::ConfirmRequired(message),
             RequestDeniedOneDay => Error::RequestDeniedOneDay(message),
             RequestDeniedOneHour => Error::RequestDeniedOneHour(message),

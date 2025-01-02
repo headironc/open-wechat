@@ -1,6 +1,9 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use aes::{
@@ -11,14 +14,18 @@ use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use cbc::Decryptor;
 use chrono::{DateTime, Duration, Utc};
+use hex::encode;
+use hmac::{Hmac, Mac};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::from_slice;
+use sha2::Sha256;
 use tokio::sync::{Notify, RwLock};
 use tracing::{event, instrument, Level};
 
 use crate::{
     client::Client,
-    error::Error::Unpad,
+    error::Error::InternalServer,
+    response::Response,
     user::{User, UserBuilder},
     Result,
 };
@@ -27,10 +34,9 @@ type Aes128CbcDec = Decryptor<Aes128>;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Credential {
-    #[serde(rename = "openid")]
     open_id: String,
     session_key: String,
-    #[serde(rename = "unionid", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     union_id: Option<String>,
 }
 
@@ -89,9 +95,7 @@ impl Credential {
 
         let encrypted_data = STANDARD.decode(encrypted_data.as_bytes())?;
 
-        let buffer = decryptor
-            .decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)
-            .map_err(Unpad)?;
+        let buffer = decryptor.decrypt_padded_vec_mut::<Pkcs7>(&encrypted_data)?;
 
         let builder = from_slice::<UserBuilder>(&buffer)?;
 
@@ -105,6 +109,35 @@ impl std::fmt::Debug for Credential {
     // 为了安全，不打印 session_key
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Credential")
+            .field("open_id", &self.open_id)
+            .field("session_key", &"********")
+            .field("union_id", &self.union_id)
+            .finish()
+    }
+}
+
+#[derive(Deserialize)]
+pub(crate) struct CredentialBuilder {
+    #[serde(rename = "openid")]
+    open_id: String,
+    session_key: String,
+    #[serde(rename = "unionid")]
+    union_id: Option<String>,
+}
+
+impl CredentialBuilder {
+    pub(crate) fn build(self) -> Credential {
+        Credential {
+            open_id: self.open_id,
+            session_key: self.session_key,
+            union_id: self.union_id,
+        }
+    }
+}
+
+impl std::fmt::Debug for CredentialBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CredentialBuilder")
             .field("open_id", &self.open_id)
             .field("session_key", &"********")
             .field("union_id", &self.union_id)
@@ -240,7 +273,10 @@ impl GetAccessToken for GenericAccessToken<AccessToken> {
 
 #[async_trait]
 pub trait GetStableAccessToken {
-    async fn new(client: Client, force_refresh: Option<bool>) -> Result<Self>
+    async fn new(
+        client: Client,
+        force_refresh: impl Into<Option<bool>> + Clone + Send,
+    ) -> Result<Self>
     where
         Self: Sized;
 
@@ -269,14 +305,19 @@ impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
     ///     Ok(())
     /// }
     /// ```
-    async fn new(client: Client, force_refresh: Option<bool>) -> Result<Self> {
-        let builder = client.get_stable_access_token(force_refresh).await?;
+    async fn new(
+        client: Client,
+        force_refresh: impl Into<Option<bool>> + Clone + Send,
+    ) -> Result<Self> {
+        let builder = client
+            .get_stable_access_token(force_refresh.clone())
+            .await?;
 
         Ok(Self {
             inner: Arc::new(RwLock::new(StableAccessToken {
                 access_token: builder.access_token,
                 expired_at: builder.expired_at,
-                force_refresh,
+                force_refresh: force_refresh.into(),
             })),
             refreshing: Arc::new(AtomicBool::new(false)),
             notify: Arc::new(Notify::new()),
@@ -368,5 +409,175 @@ impl std::fmt::Debug for AccessTokenBuilder {
             .field("access_token", &"********")
             .field("expired_at", &self.expired_at)
             .finish()
+    }
+}
+
+#[async_trait]
+pub trait CheckSessionKey {
+    const CHECK_SESSION_KEY: &'static str = "https://api.weixin.qq.com/wxa/checksession";
+
+    /// 检查登录态是否过期
+    /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/checkSessionKey.html
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()>;
+}
+
+type HmacSha256 = Hmac<Sha256>;
+
+#[async_trait]
+impl CheckSessionKey for GenericAccessToken<AccessToken> {
+    #[instrument(skip(self, session_key, open_id))]
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::CHECK_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<()>>().await?;
+
+            response.extract()
+        } else {
+            Err(crate::error::Error::InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+impl CheckSessionKey for GenericAccessToken<StableAccessToken> {
+    #[instrument(skip(self, session_key, open_id))]
+    async fn check_session_key(&self, session_key: &str, open_id: &str) -> Result<()> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::CHECK_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<()>>().await?;
+
+            response.extract()
+        } else {
+            Err(InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+pub trait ResetSessionKey {
+    const RESET_SESSION_KEY: &'static str = "https://api.weixin.qq.com/wxa/resetusersessionkey";
+
+    /// 重置用户的 session_key
+    /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/ResetUserSessionKey.html
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential>;
+}
+
+#[async_trait]
+impl ResetSessionKey for GenericAccessToken<AccessToken> {
+    #[instrument(skip(self, open_id))]
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("access_token", self.access_token().await?);
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::RESET_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<CredentialBuilder>>().await?;
+
+            let credential = response.extract()?.build();
+
+            event!(Level::DEBUG, "credential: {:#?}", credential);
+
+            Ok(credential)
+        } else {
+            Err(InternalServer(response.text().await?))
+        }
+    }
+}
+
+#[async_trait]
+impl ResetSessionKey for GenericAccessToken<StableAccessToken> {
+    #[instrument(skip(self, open_id))]
+    async fn reset_session_key(&self, session_key: &str, open_id: &str) -> Result<Credential> {
+        let mut mac = HmacSha256::new_from_slice(session_key.as_bytes())?;
+        mac.update(b"");
+        let hasher = mac.finalize();
+        let signature = encode(hasher.into_bytes());
+
+        let mut map = HashMap::new();
+
+        map.insert("access_token", self.access_token().await?);
+        map.insert("openid", open_id.to_string());
+        map.insert("signature", signature);
+        map.insert("sig_method", "hmac_sha256".into());
+
+        let response = self
+            .client
+            .request()
+            .get(Self::RESET_SESSION_KEY)
+            .query(&map)
+            .send()
+            .await?;
+
+        event!(Level::DEBUG, "response: {:#?}", response);
+
+        if response.status().is_success() {
+            let response = response.json::<Response<CredentialBuilder>>().await?;
+
+            let credential = response.extract()?.build();
+
+            event!(Level::DEBUG, "credential: {:#?}", credential);
+
+            Ok(credential)
+        } else {
+            Err(InternalServer(response.text().await?))
+        }
     }
 }
