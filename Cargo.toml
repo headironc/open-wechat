@@ -27,3 +27,8 @@ tokio = { version = "^1.41.1", features = [] }
 hmac = "0.12.1"
 sha2 = "0.10.8"
 hex = "0.4.3"
+
+[dev-dependencies]
+axum = "0.8.1"
+serde_json = "^1.0.133"
+tokio = { version = "^1.41.1", features = ["full"] }

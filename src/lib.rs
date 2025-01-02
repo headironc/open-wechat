@@ -8,7 +8,7 @@
 //!
 //! ### Get access token
 //!
-//! ```rust
+//! ```ignore
 //! use open_wechat::{
 //!     client::Client,
 //!     credential::{GenericAccessToken, GetAccessToken}
@@ -21,7 +21,7 @@
 //!
 //!     let client = Client::new(app_id, app_secret);
 //!
-//!     let access_token = GenericAccessToken::new(self.client.clone()).await?;
+//!     let access_token = GenericAccessToken::new(client.clone()).await?;
 //!
 //!     Ok(())
 //! }
@@ -29,7 +29,7 @@
 //!
 //! ### Get stable access token
 //!
-//! ```rust
+//! ```ignore
 //! use open_wechat::{
 //!     client::Client,
 //!     credential::{GenericAccessToken, GetStableAccessToken}
@@ -42,7 +42,7 @@
 //!
 //!     let client = Client::new(app_id, app_secret);
 //!
-//!     let stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
+//!     let stable_access_token = GenericAccessToken::new(client.clone(), None).await?;
 //!
 //!     Ok(())
 //! }
@@ -52,10 +52,8 @@
 //!
 //! ```rust
 //! use axum::{extract::State, response::IntoResponse, Json};
-//! use open_wechat::client::Client;
+//! use open_wechat::{client::Client, Result};
 //! use serde::Deserialize;
-//!
-//! use crate::Result;
 //!
 //! #[derive(Deserialize, Default)]
 //! #[serde(default)]
@@ -77,10 +75,8 @@
 //!
 //! ```rust
 //! use axum::{extract::State, response::IntoResponse, Json};
-//! use open_wechat::client::Client;
+//! use open_wechat::{client::Client, Result};
 //! use serde::Deserialize;
-//!
-//! use crate::Result;
 //!
 //! #[derive(Deserialize, Default)]
 //! pub(crate) struct EncryptedPayload {
@@ -105,8 +101,9 @@
 //!
 //! ```rust
 //! use axum::{extract::State, response::IntoResponse, Json};
-//! use open_wechat::client::{GenericAccessToken, Client, CheckSessionKey};
+//! use open_wechat::{client::Client, credential::{GenericAccessToken, CheckSessionKey}, Result};
 //! use serde::Deserialize;
+//! use serde_json::json;
 //!
 //! #[derive(Debug, Deserialize, Default)]
 //! #[serde(default)]
@@ -117,10 +114,8 @@
 //!
 //! pub(crate) async fn check_session_key(
 //!     State(access_token): State<GenericAccessToken>,
-//!     JsonDecoder(checker): JsonDecoder<SessionKeyChecker>,
+//!     Json(checker): Json<SessionKeyChecker>,
 //! ) -> Result<impl IntoResponse> {
-//!     event!(Level::INFO, "check session key: {:?}", checker);
-//!
 //!     access_token
 //!         .check_session_key(&checker.session_key, &checker.open_id)
 //!         .await?;
@@ -137,10 +132,9 @@
 //!
 //! ```rust
 //! use axum::{extract::State, response::IntoResponse, Json};
-//! use open_wechat::client::{GenericAccessToken, Client, ResetSessionKey};
+//! use open_wechat::{client::Client, credential::{GenericAccessToken, ResetSessionKey}, Result};
 //! use serde::Deserialize;
-//!
-//! use crate::Result;
+//! use serde_json::json;
 //!
 //! #[derive(Debug, Deserialize, Default)]
 //! #[serde(default)]
@@ -151,10 +145,8 @@
 //!
 //! pub(crate) async fn reset_session_key(
 //!     State(access_token): State<GenericAccessToken>,
-//!     JsonDecoder(resetter): JsonDecoder<SessionKeyResetter>,
+//!     Json(resetter): Json<SessionKeyResetter>,
 //! ) -> Result<impl IntoResponse> {
-//!     event!(Level::INFO, "reset session key: {:?}", resetter);
-//!
 //!     let credential = access_token
 //!         .reset_session_key(&resetter.session_key, &resetter.open_id)
 //!         .await?;
