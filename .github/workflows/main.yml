@@ -5,9 +5,14 @@ on:
     branches: [main]
   pull_request:
     types:
-      - 'opened'
-      - 'synchronize'
+      - "opened"
+      - "synchronize"
     branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
 
 name: Cargo Clippy & Test & Build
 
