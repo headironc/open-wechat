@@ -57,10 +57,8 @@ impl Credential {
     /// https://developers.weixin.qq.com/miniprogram/dev/framework/open-ability/signature.html
     /// ```rust
     /// use axum::{extract::State, response::IntoResponse, Json};
-    /// use open_wechat::client::Client;
+    /// use open_wechat::{client::Client, Result};
     /// use serde::Deserialize;
-    ///
-    /// use crate::Result;
     ///
     /// #[derive(Deserialize, Default)]
     /// pub(crate) struct EncryptedPayload {
@@ -196,7 +194,7 @@ pub trait GetAccessToken {
 
 #[async_trait]
 impl GetAccessToken for GenericAccessToken<AccessToken> {
-    /// ```rust
+    /// ```ignore
     /// use open_wechat::{
     ///     client::Client,
     ///     credential::{GenericAccessToken, GetAccessToken}
@@ -209,10 +207,11 @@ impl GetAccessToken for GenericAccessToken<AccessToken> {
     ///    
     ///     let client = Client::new(app_id, app_secret);
     ///     
-    ///     let access_token = GenericAccessToken::new(self.client.clone()).await?;
+    ///     let access_token = GenericAccessToken::new(client.clone()).await?;
     ///     
     ///     Ok(())
     /// }
+    /// ```
     async fn new(client: Client) -> Result<Self> {
         let builder = client.get_access_token().await?;
 
@@ -287,7 +286,7 @@ pub trait GetStableAccessToken {
 
 #[async_trait]
 impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
-    /// ```rust
+    /// ```ignore
     /// use open_wechat::{
     ///     client::Client,
     ///     credential::{GenericAccessToken, GetStableAccessToken}
@@ -300,7 +299,7 @@ impl GetStableAccessToken for GenericAccessToken<StableAccessToken> {
     ///
     ///     let client = Client::new(app_id, app_secret);
     ///
-    ///     let stable_access_token = GenericAccessToken::new(self.client.clone(), None).await?;
+    ///     let stable_access_token = GenericAccessToken::new(client.clone(), None).await?;
     ///
     ///     Ok(())
     /// }

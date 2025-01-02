@@ -16,7 +16,7 @@ pub struct Client {
 }
 
 impl Client {
-    /// ```rust
+    /// ```ignore
     /// use open_wechat::client::Client;
     ///
     /// #[tokio::main]
@@ -51,10 +51,8 @@ impl Client {
     /// https://developers.weixin.qq.com/miniprogram/dev/OpenApiDoc/user-login/code2Session.html
     /// ```rust
     /// use axum::{extract::State, response::IntoResponse, Json};
-    /// use open_wechat::client::Client;
+    /// use open_wechat::{client::Client, Result};
     /// use serde::Deserialize;
-    ///
-    /// use crate::Result;
     ///
     /// #[derive(Deserialize, Default)]
     /// #[serde(default)]

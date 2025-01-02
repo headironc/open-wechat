@@ -2,7 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: "cargo"
-    directory: "/open-wechat"
+    directory: "/"
     schedule:
       interval: "daily"
 
