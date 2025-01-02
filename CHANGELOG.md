@@ -1,10 +1,16 @@
 # CHANGELOG
 
+## 1.1.1 - 2025-01-02
+
+### Bug Fixes
+
+- **[BUGFIX]**: Fixed the doc test error.
+
 ## 1.1.0 - 2025-01-02
 
 ### Breaking Changes
 
-- **[BREAKING]**: Modified the fields of structure serialization. `openid` and `unionid` are changed to `open_id` and `union_id` respectively.
+- **[BREAKING]**: Modified the fields of structure `Credential` serialization. `openid` and `unionid` are changed to `open_id` and `union_id` respectively.
 
 ### Features
 
