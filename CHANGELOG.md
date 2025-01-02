@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [1.2.0](https://github.com/headironc/open-wechat/compare/v1.1.1...v1.2.0) - 2025-01-02
+
+### Added
+
+- Add GitHub Actions workflow for automated releases (#40)
+
 ## 1.1.1 - 2025-01-02
 
 ### Bug Fixes
